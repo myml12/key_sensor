@@ -112,26 +112,13 @@ bool setLockStateWithTimestamp(int state) {
   json.set("timestamp/.sv", "timestamp");
 
   const int maxRetries = 5;
-  for (int i = 0; i < maxRetries; i++) {
+  bool success = false;
 
+  for(int i = 0; i < maxRetries; i++) {
+    
     if (i == maxRetries - 1) ESP.restart();
 
-    Serial.printf("Firebase 書き込み試行 %d 回目...\n", i + 1);
-
-    if (Firebase.RTDB.updateNode(&fbdo, "/room/1047", &json)) {
-      Serial.println("✅ Firebase 書き込み成功");
-      return true;
-    } else {
-      Serial.print("❌ 失敗: ");
-      Serial.println(fbdo.errorReason());
-
-      // Firebase設定の再適用（明示的な end は不要）
-      Serial.println("Firebase を再初期化します...");
-      Firebase.begin(&config, &auth); // 再度初期化
-      delay(1500); // 少し待機
-    }
-
-    // WiFi再接続もチェック
+    // WiFi再接続をチェック
     if (WiFi.status() != WL_CONNECTED) {
       Serial.println("WiFiが切断されています。再接続中...");
       WiFi.disconnect(true);
@@ -145,9 +132,19 @@ bool setLockStateWithTimestamp(int state) {
       Serial.println(WiFi.status() == WL_CONNECTED ? "\n再接続成功" : "\n再接続失敗");
     }
 
-    delay(1000);  // 次の試行まで少し待つ
+    if(Firebase.ready()){
+      success = Firebase.RTDB.updateNode(&fbdo, "/room/1047", &json);
+      if (success){
+        return true;
+      }
+      else{
+        delay(1000);
+      }
+    } else {
+      Firebase.begin(&config, &auth);
+      delay(1000);
+    }
   }
-
   return false;
 }
 
